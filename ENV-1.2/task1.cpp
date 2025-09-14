@@ -1,7 +1,22 @@
 #include <iostream>
+#include <string>
 #include <stdexcept>
 
 using namespace std;
+
+bool isInt(const string& s)
+{
+    if (s.empty()) return false;
+    int start = 0;
+    if (s[0] == '-' || s[1] == '+') start = 1;
+    if (start == s.size()) return false;
+
+    for (int i = start; i < s.size(); i++)
+    {
+        if (!isdigit(s[i])) return false;
+    }
+    return true;
+}
 
 int main(int argc, char* argv[])
 {
@@ -13,24 +28,29 @@ int main(int argc, char* argv[])
 
     try
     {
-        int a = stoi(argv[1]);
-        int b = stoi(argv[2]);
-        int c = stoi(argv[3]);
+        string a = argv[1];
+        string b = argv[2];
+        string c = argv[3];
 
-        int mn = a;
-        if (b < mn) mn = b;
-        if (c < mn) mn = c;
+        if (!isInt(a) || !isInt(b) || !isInt(c))
+        {
+            cout << "Error: all arguments must be integers" << endl;
+            return 1;
+        }
 
-        int mx = a;
-        if (b > mx) mx = b;
-        if (c > mx) mx = c;
+        int ai = stoi(a);
+        int bi = stoi(b);
+        int ci = stoi(c);
+
+        int mn = ai;
+        if (bi < mn) mn = bi;
+        if (ci < mn) mn = ci;
+
+        int mx = ai;
+        if (bi > mx) mx = bi;
+        if (ci > mx) mx = ci;
 
         cout << "min-" << mn << ", max-" << mx << endl;
-    }
-    catch (invalid_argument&)
-    {
-        cout << "Error: one of the arguments is not a number" << endl;
-        return 1;
     }
     catch (out_of_range&)
     {
