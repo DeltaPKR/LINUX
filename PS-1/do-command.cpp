@@ -60,7 +60,7 @@ int main(int argc, char** argv)
 {
     if (argc < 2)
     {
-        std::cerr << "usage: " << argv[0] << " <command> [args...]" << endl;
+        cerr << "usage: " << argv[0] << " <command> [args...]" << endl;
         return 2;
     }
 
