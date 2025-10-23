@@ -20,20 +20,20 @@ int main(int argc, char* argv[])
     if (stat(path, &st) != 0)
     {
         cout << "stat failed";
-        return 2;
+        return 1;
     }
 
     if (!S_ISREG(st.st_mode))
     {
         cout << "not a regular file";
-        return 3;
+        return 1;
     }
 
     int fd = open(path, O_WRONLY);
     if (fd < 0)
     {
         cout << "open failed";
-        return 4;
+        return 1;
     }
 
     int remaining = (int)st.st_size;
@@ -50,18 +50,22 @@ int main(int argc, char* argv[])
         {
             cout << "write failed";
             close(fd);
-            return 5;
+            return 1;
         }
         remaining -= written;
     }
 
-    fsync(fd);
+    if(fsync(fd) == -1) 
+    {
+	    perror("fsync failed");
+	    return 1;
+    }
     close(fd);
 
     if (unlink(path) != 0)
     {
         perror("unlink");
-        return 6;
+        return 1;
     }
 
     return 0;

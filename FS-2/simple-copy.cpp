@@ -21,7 +21,7 @@ int main(int argc, char * argv[])
         return 2;
     }
 
-    int dst = open(argv[2], O_WRONLY);
+    int dst = open(argv[2], O_WRONLY | O_TRUNC | O_CREAT, 0644);
     if (dst == -1)
     {
         cerr << "Error opening destination: " << argv[2] << " : " << strerror(errno) << '\n';
