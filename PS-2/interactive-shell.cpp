@@ -7,6 +7,8 @@
 #include <unistd.h>
 #include <cstdlib>
 #include <cstring>
+#include <cerrno>
+#include <limits.h>
 
 std::string trim(const std::string &s)
  {
@@ -48,18 +50,49 @@ std::vector<std::string> split_once(const std::string& str, const std::string& d
      return res;
  }
 
-int run_command(const std::string &cmd, int output_fd = 1)
+int run_command(const std::string &cmd, int output_fd = 1, bool silent = false)
  {
      std::vector<std::string> args = split(cmd, ' ');
      if (args.empty()) return 0;
      int pid = fork();
      if (pid == 0)
      {
+         char cwd[PATH_MAX];
+         if (getcwd(cwd, sizeof cwd) != nullptr)
+         {
+             const char *old = getenv("PATH");
+             std::string newp;
+             if (old && old[0])
+             {
+                 newp = std::string(cwd) + ":" + old;
+             }
+             else
+             {
+                 newp = std::string(cwd);
+             }
+             setenv("PATH", newp.c_str(), 1);
+         }
+
          if (output_fd >= 0 && output_fd != 1)
          {
              dup2(output_fd, 1);
              dup2(output_fd, 2);
              close(output_fd);
+         }
+         else if (output_fd == 1 && silent)
+         {
+             pid_t me = getpid();
+             char fname[64];
+             snprintf(fname, sizeof fname, "%d.log", (int)me);
+             int fd = open(fname, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+             if (fd == -1)
+             {
+                 std::cerr << "open failed for " << fname << " : " << std::strerror(errno) << std::endl;
+                 _exit(127);
+             }
+             dup2(fd, 1);
+             dup2(fd, 2);
+             close(fd);
          }
          std::vector<char*> argv;
          argv.reserve(args.size() + 1);
@@ -69,6 +102,7 @@ int run_command(const std::string &cmd, int output_fd = 1)
          }
          argv.push_back(nullptr);
          execvp(argv[0], argv.data());
+         std::cerr << "execvp failed for " << (argv[0] ? argv[0] : "unknown") << " : " << std::strerror(errno) << std::endl;
          _exit(EXIT_FAILURE);
      }
      else if (pid > 0)
@@ -76,7 +110,7 @@ int run_command(const std::string &cmd, int output_fd = 1)
          int status;
          if (waitpid(pid, &status, 0) == -1)
          {
-             std::cerr << "waitpid failed for: " << cmd << std::endl;
+             std::cerr << "waitpid failed for: " << cmd << " : " << std::strerror(errno) << std::endl;
              return 1;
          }
          if (WIFEXITED(status))
@@ -87,7 +121,7 @@ int run_command(const std::string &cmd, int output_fd = 1)
      }
      else
      {
-         std::cerr << "fork failed for: " << cmd << std::endl;
+         std::cerr << "fork failed for: " << cmd << " : " << std::strerror(errno) << std::endl;
          return 1;
      }
  }
@@ -131,7 +165,7 @@ int eval_command(const std::string &command_input)
          int fd = open(file.c_str(), O_WRONLY | O_CREAT | O_APPEND, 0644);
          if (fd == -1)
          {
-             std::cerr << "Failed to open file for append: " << file << std::endl;
+             std::cerr << "Failed to open file for append: " << file << " : " << std::strerror(errno) << std::endl;
              return 1;
          }
          int rc = run_command(left, fd);
@@ -146,7 +180,7 @@ int eval_command(const std::string &command_input)
          int fd = open(file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
          if (fd == -1)
          {
-             std::cerr << "Failed to open file for write: " << file << std::endl;
+             std::cerr << "Failed to open file for write: " << file << " : " << std::strerror(errno) << std::endl;
              return 1;
          }
          int rc = run_command(left, fd);
@@ -155,7 +189,20 @@ int eval_command(const std::string &command_input)
      }
      else
      {
-         return run_command(cmd);
+         bool is_silent = false;
+         if (cmd.size() >= 6 && cmd.compare(0, 6, "silent") == 0)
+         {
+             if (cmd.size() == 6)
+             {
+                 return 0;
+             }
+             if (cmd[6] == ' ' || cmd[6] == '\t')
+             {
+                 is_silent = true;
+                 cmd = trim(cmd.substr(6));
+             }
+         }
+         return run_command(cmd, 1, is_silent);
      }
  }
 
