@@ -4,6 +4,7 @@
 #include <random>
 #include <algorithm>
 #include <chrono>
+#include <cstring>
 
 class Data
 {
@@ -90,14 +91,35 @@ int main(int argc, char** argv)
     }
     
     auto tm1 = std::chrono::high_resolution_clock::now();
+    int created = 0;
     for (unsigned long long i = 0; i < M; ++i)
     {
-        pthread_create(&th_datas[i].tid, nullptr, run, &th_datas[i]);
+	int rc = pthread_create(&th_datas[i].tid, nullptr, run, &th_datas[i]);
+	if(rc != 0)
+	{
+		std::cerr << "thread create failed at: " << i << " rc" << " (" << std::strerror(rc) << ")"  << std::endl;
+		for(int j = 0; j < created; ++j)
+		{
+		    int jr = pthread_join(th_datas[j].tid, nullptr);
+		    if(jr != 0)
+		    {
+			std::cerr << "pthread_join failed for" << j << " jr" << jr << " (" << std::strerror(jr) << ")" << std::endl;
+		    }
+		    return 1;
+		}
+	}
+	++created;
     }
-    for (unsigned long long i = 0; i < M; ++i)
+    for (int i = 0; i < created; ++i)
     {
-        pthread_join(th_datas[i].tid, nullptr);
+	int jr = pthread_join(th_datas[i].tid, nullptr);
+	if(jr != 0)
+	{
+	    std::cerr << "thread join failed" << i << " jr" << jr << " (" << std::strerror(jr) << ")" << std::endl;
+	    return 1;
+	}
     }
+
     auto tm2 = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> multi_ms = tm2 - tm1;
 
@@ -112,3 +134,6 @@ int main(int argc, char** argv)
     
     return 0;
 }
+
+
+
