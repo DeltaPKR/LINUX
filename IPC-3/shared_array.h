@@ -11,6 +11,13 @@ public:
     shared_array(const std::string & name, std::size_t size);
     ~shared_array();
 
+    // disable copy
+    shared_array(const shared_array &) = delete;
+    shared_array & operator=(const shared_array &) = delete;
+
+    // allow move
+    shared_array(shared_array && other) noexcept;
+
     int & operator [] (std::size_t idx);
     const int & operator [] (std::size_t idx) const;
     std::size_t size() const;
@@ -26,7 +33,14 @@ public:
         shared_array & arr_;
     };
 
+    // unlink the named semaphore and shared memory object
     void unlink_resources();
+
+    // convenience static remover
+    static bool remove_shared_by_name(const std::string & name) noexcept;
+
+    // optional explicit sync
+    void sync();
 
 private:
     std::string shm_name_;
